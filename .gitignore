@@ -1,0 +1,9 @@
+node_modules/
+keys/
+dist/
+research/
+*.log
+.env*
+test-results/
+video/raw/
+video/out/

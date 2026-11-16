@@ -1,0 +1,28 @@
+{
+  "network": "chipnet",
+  "relay": "relay.riften.net",
+  "steps": {
+    "fund": {
+      "txid": "862639a4738965a973a0390ed5c9248f5b17d06d84347986880e27a8024c6066",
+      "explorer": "https://chipnet.imaginary.cash/tx/862639a4738965a973a0390ed5c9248f5b17d06d84347986880e27a8024c6066",
+      "note": "P2PKH inputs signed by the wallet"
+    },
+    "release": {
+      "txid": "c87b3aac0d6af16886fe1edd701d75b9a15b9425e19dc837539883726fb57494",
+      "explorer": "https://chipnet.imaginary.cash/tx/c87b3aac0d6af16886fe1edd701d75b9a15b9425e19dc837539883726fb57494",
+      "note": "covenant input: wallet fills the signature placeholder"
+    },
+    "refund-2-of-3": {
+      "txid": "9133d23ebe139f2fc347fc63a18622400cad08fc0da0b3bbd442a92c85feace0",
+      "explorer": "https://chipnet.imaginary.cash/tx/9133d23ebe139f2fc347fc63a18622400cad08fc0da0b3bbd442a92c85feace0",
+      "note": "two signatures collected in two wallet requests"
+    }
+  },
+  "finalState": {
+    "milestones": [
+      "paid",
+      "paid"
+    ],
+    "retentionHeld": "600"
+  }
+}

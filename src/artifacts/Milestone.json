@@ -1,0 +1,172 @@
+{
+  "contractName": "Milestone",
+  "constructorInputs": [
+    {
+      "name": "owner",
+      "type": "pubkey"
+    },
+    {
+      "name": "contractor",
+      "type": "pubkey"
+    },
+    {
+      "name": "inspector",
+      "type": "pubkey"
+    },
+    {
+      "name": "retentionLock",
+      "type": "bytes35"
+    },
+    {
+      "name": "retentionBps",
+      "type": "int"
+    },
+    {
+      "name": "termsHash",
+      "type": "bytes32"
+    },
+    {
+      "name": "index",
+      "type": "int"
+    }
+  ],
+  "abi": [
+    {
+      "name": "release",
+      "inputs": [
+        {
+          "name": "approver",
+          "type": "pubkey"
+        },
+        {
+          "name": "approval",
+          "type": "sig"
+        }
+      ]
+    },
+    {
+      "name": "cosign",
+      "inputs": [
+        {
+          "name": "first",
+          "type": "pubkey"
+        },
+        {
+          "name": "firstSig",
+          "type": "sig"
+        },
+        {
+          "name": "second",
+          "type": "pubkey"
+        },
+        {
+          "name": "secondSig",
+          "type": "sig"
+        }
+      ]
+    }
+  ],
+  "bytecode": "OP_7 OP_PICK OP_0 OP_NUMEQUAL OP_IF OP_8 OP_PICK OP_EQUAL OP_8 OP_PICK OP_3 OP_ROLL OP_EQUAL OP_BOOLOR OP_VERIFY OP_7 OP_ROLL OP_7 OP_ROLL OP_CHECKSIGVERIFY OP_3 OP_ROLL OP_SIZE OP_NIP 20 OP_NUMEQUAL OP_4 OP_ROLL OP_0 OP_GREATERTHANOREQUAL OP_BOOLAND OP_VERIFY OP_INPUTINDEX OP_0 OP_NUMEQUALVERIFY OP_0 OP_UTXOTOKENCATEGORY OP_0 OP_UTXOTOKENAMOUNT OP_0 OP_UTXOVALUE OP_0 OP_OUTPUTBYTECODE 76a914 OP_5 OP_ROLL OP_HASH160 OP_CAT 88ac OP_CAT OP_EQUALVERIFY OP_1 OP_OUTPUTBYTECODE OP_4 OP_ROLL OP_EQUALVERIFY OP_0 OP_OUTPUTTOKENCATEGORY OP_3 OP_PICK OP_EQUALVERIFY OP_OVER OP_0 OP_GREATERTHAN OP_IF OP_OVER OP_4 OP_PICK OP_MUL 1027 OP_DIV OP_DUP OP_0 OP_GREATERTHAN OP_VERIFY OP_1 OP_OUTPUTTOKENCATEGORY OP_4 OP_PICK OP_EQUALVERIFY OP_0 OP_OUTPUTTOKENAMOUNT OP_3 OP_PICK OP_2 OP_PICK OP_SUB OP_NUMEQUALVERIFY OP_1 OP_OUTPUTTOKENAMOUNT OP_OVER OP_NUMEQUALVERIFY OP_0 OP_OUTPUTVALUE e803 OP_GREATERTHANOREQUAL OP_VERIFY OP_1 OP_OUTPUTVALUE e803 OP_GREATERTHANOREQUAL OP_VERIFY OP_DROP OP_ELSE OP_DUP OP_4 OP_PICK OP_MUL 1027 OP_DIV OP_1 OP_OUTPUTTOKENCATEGORY OP_0 OP_EQUALVERIFY OP_0 OP_OUTPUTVALUE OP_2 OP_PICK OP_2 OP_PICK OP_SUB OP_NUMEQUALVERIFY OP_1 OP_OUTPUTVALUE OP_OVER OP_NUMEQUALVERIFY OP_DROP OP_ENDIF OP_2DROP OP_2DROP OP_DROP OP_1 OP_ELSE OP_7 OP_ROLL OP_1 OP_NUMEQUALVERIFY OP_7 OP_PICK OP_10 OP_PICK OP_EQUAL OP_NOT OP_VERIFY OP_7 OP_PICK OP_OVER OP_EQUAL OP_8 OP_PICK OP_3 OP_PICK OP_EQUAL OP_BOOLOR OP_8 OP_PICK OP_4 OP_PICK OP_EQUAL OP_BOOLOR OP_VERIFY OP_9 OP_PICK OP_EQUAL OP_9 OP_PICK OP_ROT OP_EQUAL OP_BOOLOR OP_8 OP_PICK OP_ROT OP_EQUAL OP_BOOLOR OP_VERIFY OP_2ROT OP_CHECKSIGVERIFY OP_2ROT OP_CHECKSIGVERIFY OP_2DROP OP_2DROP OP_1 OP_ENDIF",
+  "source": "pragma cashscript ^0.14.0;\n\n// Veridom Escrow - one UTXO per construction milestone.\n//\n// The homeowner locks the price of one building stage (BCH or a CashToken\n// stablecoin such as ParyonUSD) in this covenant. When the stage is approved,\n// the covenant itself enforces the split:\n//   output 0 -> the contractor        (stage price minus the retention)\n//   output 1 -> the Retention vault   (held until the warranty period ends)\n// Nobody, including the approver, can redirect the money anywhere else.\ncontract Milestone(\n    pubkey owner,          // homeowner (client)\n    pubkey contractor,     // builder who gets paid\n    pubkey inspector,      // independent site supervisor chosen by both sides\n    bytes35 retentionLock, // P2SH32 locking bytecode of the Retention vault\n    int retentionBps,      // retention in basis points (500 = 5 %)\n    bytes32 termsHash,     // sha256 of the agreed terms (binds chain to paper)\n    int index              // milestone number, gives each stage its own address\n) {\n    // Stage accepted: the homeowner approves, or the inspector certifies the\n    // work if the homeowner stays silent.\n    function release(pubkey approver, sig approval) {\n        require(approver == owner || approver == inspector);\n        require(checkSig(approval, approver));\n        require(termsHash.length == 32 && index >= 0);\n\n        // The milestone is always input 0; outputs 0 and 1 are fixed by the covenant.\n        require(this.activeInputIndex == 0);\n        bytes category = tx.inputs[0].tokenCategory;\n        int tokens = tx.inputs[0].tokenAmount;\n        int value = tx.inputs[0].value;\n\n        require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(hash160(contractor)));\n        require(tx.outputs[1].lockingBytecode == retentionLock);\n        require(tx.outputs[0].tokenCategory == category);\n\n        if (tokens > 0) {\n            // Stablecoin milestone: split the tokens, both outputs keep a BCH carrier.\n            int retainedTokens = tokens * retentionBps / 10000;\n            require(retainedTokens > 0);\n            require(tx.outputs[1].tokenCategory == category);\n            require(tx.outputs[0].tokenAmount == tokens - retainedTokens);\n            require(tx.outputs[1].tokenAmount == retainedTokens);\n            require(tx.outputs[0].value >= 1000);\n            require(tx.outputs[1].value >= 1000);\n        } else {\n            // BCH milestone: split the satoshis. The network fee comes from another input.\n            int retained = value * retentionBps / 10000;\n            require(tx.outputs[1].tokenCategory == 0x);\n            require(tx.outputs[0].value == value - retained);\n            require(tx.outputs[1].value == retained);\n        }\n    }\n\n    // Dispute or change of plans: any two of the three parties decide together\n    // (refund to the homeowner, partial payment, replacement contractor...).\n    function cosign(pubkey first, sig firstSig, pubkey second, sig secondSig) {\n        require(first != second);\n        require(first == owner || first == contractor || first == inspector);\n        require(second == owner || second == contractor || second == inspector);\n        require(checkSig(firstSig, first));\n        require(checkSig(secondSig, second));\n    }\n}\n",
+  "fingerprint": "22db38c8c70eeb54cb873cc32144082c6090fd91255ac182bcb84c49701bd7b7",
+  "debug": {
+    "bytecode": "5779009c635879875879537a879b69577a577aad537a827701209c547a00a29a69c0009d00ce00d000c600cd0376a914557aa97e0288ac7e8851cd547a8800d15379887800a06378547995021027967600a06951d154798800d353795279949d51d3789d00cc02e803a26951cc02e803a2697567765479950210279651d1008800cc52795279949d51cc789d75686d6d755167577a519d57795a798791695779788758795379879b58795479879b6959798759797b879b58797b879b6971ad71ad6d6d5168",
+    "sourceMap": "22:4:53:5;;;;;23:16:23:24;;:::33:1;:37::45:0;;:49::58;;:37:::1;:16;:8::60;24:25:24:33:0;;:35::43;;:8::46:1;25:16:25:25:0;;:::32:1;;:36::38:0;:16:::1;:42::47:0;;:51::52;:42:::1;:16;:8::54;28:16:28:37:0;:41::42;:8::44:1;29:35:29:36:0;:25::51:1;30:31:30:32:0;:21::45:1;31:30:31:31:0;:20::38:1;33:27:33:28:0;:16::45:1;:49::94:0;:82::92;;:74::93:1;:49::94;;;:8::96;34:27:34:28:0;:16::45:1;:49::62:0;;:8::64:1;35:27:35:28:0;:16::43:1;:47::55:0;;:8::57:1;37:12:37:18:0;:21::22;:12:::1;:24:46:9:0;39:33:39:39;:42::54;;:33:::1;:57::62:0;:33:::1;40:20:40:34:0;:37::38;:20:::1;:12::40;41:31:41:32:0;:20::47:1;:51::59:0;;:12::61:1;42:31:42:32:0;:20::45:1;:49::55:0;;:58::72;;:49:::1;:12::74;43:31:43:32:0;:20::45:1;:49::63:0;:12::65:1;44:31:44:32:0;:20::39:1;:43::47:0;:20:::1;:12::49;45:31:45:32:0;:20::39:1;:43::47:0;:20:::1;:12::49;37:24:46:9;46:15:52::0;48:27:48:32;:35::47;;:27:::1;:50::55:0;:27:::1;49:31:49:32:0;:20::47:1;:51::53:0;:12::55:1;50:31:50:32:0;:20::39:1;:43::48:0;;:51::59;;:43:::1;:12::61;51:31:51:32:0;:20::39:1;:43::51:0;:12::53:1;46:15:52:9;;22:52:53:5;;;;:4;57::63::0;;;;58:16:58:21;;:25::31;;:16:::1;;:8::33;59:16:59:21:0;;:25::30;:16:::1;:34::39:0;;:43::53;;:34:::1;:16;:57::62:0;;:66::75;;:57:::1;:16;:8::77;60:16:60:22:0;;:::31:1;:35::41:0;;:45::55;:35:::1;:16;:59::65:0;;:69::78;:59:::1;:16;:8::80;61:25:61:40:0;:8::43:1;62:25:62:42:0;:8::45:1;57:78:63:5;;;11:0:64:1",
+    "logs": [],
+    "requires": [
+      {
+        "ip": 21,
+        "line": 23
+      },
+      {
+        "ip": 26,
+        "line": 24
+      },
+      {
+        "ip": 38,
+        "line": 25
+      },
+      {
+        "ip": 41,
+        "line": 28
+      },
+      {
+        "ip": 57,
+        "line": 33
+      },
+      {
+        "ip": 62,
+        "line": 34
+      },
+      {
+        "ip": 67,
+        "line": 35
+      },
+      {
+        "ip": 81,
+        "line": 40
+      },
+      {
+        "ip": 86,
+        "line": 41
+      },
+      {
+        "ip": 94,
+        "line": 42
+      },
+      {
+        "ip": 98,
+        "line": 43
+      },
+      {
+        "ip": 103,
+        "line": 44
+      },
+      {
+        "ip": 108,
+        "line": 45
+      },
+      {
+        "ip": 120,
+        "line": 49
+      },
+      {
+        "ip": 128,
+        "line": 50
+      },
+      {
+        "ip": 132,
+        "line": 51
+      },
+      {
+        "ip": 150,
+        "line": 58
+      },
+      {
+        "ip": 167,
+        "line": 59
+      },
+      {
+        "ip": 181,
+        "line": 60
+      },
+      {
+        "ip": 183,
+        "line": 61
+      },
+      {
+        "ip": 185,
+        "line": 62
+      }
+    ],
+    "sourceTags": "102:102:sc;126:126:sc"
+  },
+  "compiler": {
+    "name": "cashc",
+    "version": "0.14.0",
+    "options": {
+      "enforceFunctionParameterTypes": true,
+      "enforceLocktimeGuard": true
+    }
+  }
+}

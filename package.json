@@ -1,0 +1,32 @@
+{
+  "name": "veridom-bch",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "compile": "node scripts/compile.mjs",
+    "dev": "vite",
+    "build": "npm run compile && vite build",
+    "preview": "vite preview --port 4319 --strictPort",
+    "test": "npm run compile && vitest run",
+    "chipnet": "node scripts/chipnet-demo.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@wizardconnect/core": "^0.2.10",
+    "@wizardconnect/dapp": "^0.2.7",
+    "@wizardconnect/wallet": "^0.2.4",
+    "cashc": "^0.14.0",
+    "cashscript": "^0.14.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "https-proxy-agent": "^9.1.0",
+    "playwright": "^1.56.1",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0",
+    "ws": "^8.23.0"
+  }
+}

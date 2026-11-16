@@ -1,0 +1,64 @@
+pragma cashscript ^0.14.0;
+
+// Veridom Escrow - one UTXO per construction milestone.
+//
+// The homeowner locks the price of one building stage (BCH or a CashToken
+// stablecoin such as ParyonUSD) in this covenant. When the stage is approved,
+// the covenant itself enforces the split:
+//   output 0 -> the contractor        (stage price minus the retention)
+//   output 1 -> the Retention vault   (held until the warranty period ends)
+// Nobody, including the approver, can redirect the money anywhere else.
+contract Milestone(
+    pubkey owner,          // homeowner (client)
+    pubkey contractor,     // builder who gets paid
+    pubkey inspector,      // independent site supervisor chosen by both sides
+    bytes35 retentionLock, // P2SH32 locking bytecode of the Retention vault
+    int retentionBps,      // retention in basis points (500 = 5 %)
+    bytes32 termsHash,     // sha256 of the agreed terms (binds chain to paper)
+    int index              // milestone number, gives each stage its own address
+) {
+    // Stage accepted: the homeowner approves, or the inspector certifies the
+    // work if the homeowner stays silent.
+    function release(pubkey approver, sig approval) {
+        require(approver == owner || approver == inspector);
+        require(checkSig(approval, approver));
+        require(termsHash.length == 32 && index >= 0);
+
+        // The milestone is always input 0; outputs 0 and 1 are fixed by the covenant.
+        require(this.activeInputIndex == 0);
+        bytes category = tx.inputs[0].tokenCategory;
+        int tokens = tx.inputs[0].tokenAmount;
+        int value = tx.inputs[0].value;
+
+        require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(hash160(contractor)));
+        require(tx.outputs[1].lockingBytecode == retentionLock);
+        require(tx.outputs[0].tokenCategory == category);
+
+        if (tokens > 0) {
+            // Stablecoin milestone: split the tokens, both outputs keep a BCH carrier.
+            int retainedTokens = tokens * retentionBps / 10000;
+            require(retainedTokens > 0);
+            require(tx.outputs[1].tokenCategory == category);
+            require(tx.outputs[0].tokenAmount == tokens - retainedTokens);
+            require(tx.outputs[1].tokenAmount == retainedTokens);
+            require(tx.outputs[0].value >= 1000);
+            require(tx.outputs[1].value >= 1000);
+        } else {
+            // BCH milestone: split the satoshis. The network fee comes from another input.
+            int retained = value * retentionBps / 10000;
+            require(tx.outputs[1].tokenCategory == 0x);
+            require(tx.outputs[0].value == value - retained);
+            require(tx.outputs[1].value == retained);
+        }
+    }
+
+    // Dispute or change of plans: any two of the three parties decide together
+    // (refund to the homeowner, partial payment, replacement contractor...).
+    function cosign(pubkey first, sig firstSig, pubkey second, sig secondSig) {
+        require(first != second);
+        require(first == owner || first == contractor || first == inspector);
+        require(second == owner || second == contractor || second == inspector);
+        require(checkSig(firstSig, first));
+        require(checkSig(secondSig, second));
+    }
+}

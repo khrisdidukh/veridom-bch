@@ -1,0 +1,131 @@
+{
+  "network": "chipnet",
+  "steps": {
+    "token-genesis": {
+      "txid": "cd35c42e9733910cc4a4f77c3dd1663f1f9db9fa80a04c294b8b5505ea2bf488",
+      "category": "39591bc3af81a11b2cdd57cf54a561bbb22c73d62401430967902842205754a9",
+      "note": "tUSD test stablecoin, 2 decimals, supply 10,000.00",
+      "explorer": "https://chipnet.imaginary.cash/tx/cd35c42e9733910cc4a4f77c3dd1663f1f9db9fa80a04c294b8b5505ea2bf488",
+      "at": "2026-11-16T16:55:08.162Z"
+    },
+    "A1-fund": {
+      "txid": "ab27e29bb7df6422e9052fefd2ea63655d29bcc10d95bc627db106b950e7686c",
+      "note": "homeowner locks 2 milestones x 3000 sats",
+      "explorer": "https://chipnet.imaginary.cash/tx/ab27e29bb7df6422e9052fefd2ea63655d29bcc10d95bc627db106b950e7686c",
+      "at": "2026-11-16T16:55:13.702Z"
+    },
+    "A2-release-by-owner": {
+      "txid": "8fe57c11b20351da6418b9939eaf812d41cc605fa545e41a852d5606831e5336",
+      "note": "covenant pays 2400 to contractor, 600 to the retention vault",
+      "explorer": "https://chipnet.imaginary.cash/tx/8fe57c11b20351da6418b9939eaf812d41cc605fa545e41a852d5606831e5336",
+      "at": "2026-11-16T16:55:18.768Z"
+    },
+    "A3-release-by-inspector": {
+      "txid": "3bdb9db2a7082bfcda96775b502bf06d1f1a1d45f933c4922ee6f2451676de73",
+      "note": "inspector certifies the stage, same enforced split",
+      "explorer": "https://chipnet.imaginary.cash/tx/3bdb9db2a7082bfcda96775b502bf06d1f1a1d45f933c4922ee6f2451676de73",
+      "at": "2026-11-16T16:55:23.429Z"
+    },
+    "B1-fund": {
+      "txid": "5d52e01e893bbd55c3ba7da2483c04f8172f40b50d60bf748e5f2cb6fa200ebb",
+      "note": "homeowner locks 1500.00 + 2500.00 tUSD",
+      "explorer": "https://chipnet.imaginary.cash/tx/5d52e01e893bbd55c3ba7da2483c04f8172f40b50d60bf748e5f2cb6fa200ebb",
+      "at": "2026-11-16T16:55:33.615Z"
+    },
+    "B2-release-by-owner": {
+      "txid": "3e04a20d54ae13499473afba1baff90c129dc7ebb11526fba53c0095b783b35f",
+      "note": "1350.00 tUSD to contractor, 150.00 tUSD to the vault",
+      "explorer": "https://chipnet.imaginary.cash/tx/3e04a20d54ae13499473afba1baff90c129dc7ebb11526fba53c0095b783b35f",
+      "at": "2026-11-16T16:55:38.600Z"
+    },
+    "B3-refund-by-owner-and-inspector": {
+      "txid": "1c670637310b2f55a24d81485173a8a4999b873b7c883409effe2178d3a87a49",
+      "note": "dispute path: 2 of 3 return the unstarted milestone (2500.00 tUSD) to the homeowner",
+      "explorer": "https://chipnet.imaginary.cash/tx/1c670637310b2f55a24d81485173a8a4999b873b7c883409effe2178d3a87a49",
+      "at": "2026-11-16T16:55:42.864Z"
+    }
+  },
+  "terms": {
+    "bch": {
+      "network": "chipnet",
+      "owner": "02465b0b338c157f48a0f5dcc253e534bccf774cba2b4e63a2e1f68df4ec70de01",
+      "contractor": "02cafa1160c095efb5273015d5b8178535f558ef4d47123c572fd8aba972c53476",
+      "inspector": "0302c16227a06ef96f0cf366ffd5996313032f47eb77c37ca6b79bbd6efab9d296",
+      "title": "Chipnet demo A - garden house (BCH)",
+      "retentionBps": 2000,
+      "warrantyEnd": 1794848710,
+      "token": null,
+      "milestones": [
+        {
+          "name": "Foundation",
+          "amount": "3000"
+        },
+        {
+          "name": "Shell and roof",
+          "amount": "3000"
+        }
+      ]
+    },
+    "token": {
+      "network": "chipnet",
+      "owner": "02465b0b338c157f48a0f5dcc253e534bccf774cba2b4e63a2e1f68df4ec70de01",
+      "contractor": "02cafa1160c095efb5273015d5b8178535f558ef4d47123c572fd8aba972c53476",
+      "inspector": "0302c16227a06ef96f0cf366ffd5996313032f47eb77c37ca6b79bbd6efab9d296",
+      "title": "Chipnet demo B - bathroom refit (tUSD)",
+      "retentionBps": 1000,
+      "warrantyEnd": 1794848710,
+      "token": {
+        "category": "39591bc3af81a11b2cdd57cf54a561bbb22c73d62401430967902842205754a9",
+        "symbol": "tUSD",
+        "decimals": 2
+      },
+      "milestones": [
+        {
+          "name": "Plumbing",
+          "amount": "150000"
+        },
+        {
+          "name": "Tiling",
+          "amount": "250000"
+        }
+      ]
+    }
+  },
+  "escrows": {
+    "bch": {
+      "termsHash": "e85d1fbc5732838095c28128b42d20232e2c317f81598664f7af2cd2e8fbad87",
+      "link": "#eyJ2IjoxLCJuZXR3b3JrIjoiY2hpcG5ldCIsInRpdGxlIjoiQ2hpcG5ldCBkZW1vIEEgLSBnYXJkZW4gaG91c2UgKEJDSCkiLCJvd25lciI6IjAyNDY1YjBiMzM4YzE1N2Y0OGEwZjVkY2MyNTNlNTM0YmNjZjc3NGNiYTJiNGU2M2EyZTFmNjhkZjRlYzcwZGUwMSIsImNvbnRyYWN0b3IiOiIwMmNhZmExMTYwYzA5NWVmYjUyNzMwMTVkNWI4MTc4NTM1ZjU1OGVmNGQ0NzEyM2M1NzJmZDhhYmE5NzJjNTM0NzYiLCJpbnNwZWN0b3IiOiIwMzAyYzE2MjI3YTA2ZWY5NmYwY2YzNjZmZmQ1OTk2MzEzMDMyZjQ3ZWI3N2MzN2NhNmI3OWJiZDZlZmFiOWQyOTYiLCJyZXRlbnRpb25CcHMiOjIwMDAsIndhcnJhbnR5RW5kIjoxNzk0ODQ4NzEwLCJ0b2tlbiI6bnVsbCwibWlsZXN0b25lcyI6W3sibmFtZSI6IkZvdW5kYXRpb24iLCJhbW91bnQiOiIzMDAwIn0seyJuYW1lIjoiU2hlbGwgYW5kIHJvb2YiLCJhbW91bnQiOiIzMDAwIn1dfQ",
+      "milestones": [
+        "bchtest:pvt253f3kj2j5uzyx7f2r8gn45j0cx0ywkplt39szmkk4sx9nsx8jjg9hcw74",
+        "bchtest:pdmjrnw2pc4tg908rxahnrrtsaxyyg42gshaeajv9fmnf042wkv9wekhp43la"
+      ],
+      "retentionVault": "bchtest:pwn3rhc3zcf97t4zl6gx9ur2squqnqsysz4gcgpq35435xd7qkc92cesqr052"
+    },
+    "token": {
+      "termsHash": "740b031190d14569953e1d45c4ea61f26935953298d3c108c8e9779e037fb98f",
+      "link": "#eyJ2IjoxLCJuZXR3b3JrIjoiY2hpcG5ldCIsInRpdGxlIjoiQ2hpcG5ldCBkZW1vIEIgLSBiYXRocm9vbSByZWZpdCAodFVTRCkiLCJvd25lciI6IjAyNDY1YjBiMzM4YzE1N2Y0OGEwZjVkY2MyNTNlNTM0YmNjZjc3NGNiYTJiNGU2M2EyZTFmNjhkZjRlYzcwZGUwMSIsImNvbnRyYWN0b3IiOiIwMmNhZmExMTYwYzA5NWVmYjUyNzMwMTVkNWI4MTc4NTM1ZjU1OGVmNGQ0NzEyM2M1NzJmZDhhYmE5NzJjNTM0NzYiLCJpbnNwZWN0b3IiOiIwMzAyYzE2MjI3YTA2ZWY5NmYwY2YzNjZmZmQ1OTk2MzEzMDMyZjQ3ZWI3N2MzN2NhNmI3OWJiZDZlZmFiOWQyOTYiLCJyZXRlbnRpb25CcHMiOjEwMDAsIndhcnJhbnR5RW5kIjoxNzk0ODQ4NzEwLCJ0b2tlbiI6eyJjYXRlZ29yeSI6IjM5NTkxYmMzYWY4MWExMWIyY2RkNTdjZjU0YTU2MWJiYjIyYzczZDYyNDAxNDMwOTY3OTAyODQyMjA1NzU0YTkiLCJzeW1ib2wiOiJ0VVNEIiwiZGVjaW1hbHMiOjJ9LCJtaWxlc3RvbmVzIjpbeyJuYW1lIjoiUGx1bWJpbmciLCJhbW91bnQiOiIxNTAwMDAifSx7Im5hbWUiOiJUaWxpbmciLCJhbW91bnQiOiIyNTAwMDAifV19",
+      "milestones": [
+        "bchtest:pwk56njesrgl8npxqsvwjz2rn8n08l984vgd7c43nygz8x87ncuss9kl85k38",
+        "bchtest:pwg3rn98a2ctzp5wl6js05pqtzmpwuh5strlz0zlvskkladk0lj6xdyd7p9ld"
+      ],
+      "retentionVault": "bchtest:pdlhw3rhfkm3j2ydnahgllrjasd56gyruq4jgl8dqpzjxy4hfw4n6yymz6xn8"
+    }
+  },
+  "parties": {
+    "owner": "bchtest:qr3j02tlla9uzmsxtpz7ejcvgj6mh5ku8y8558tq7c",
+    "contractor": "bchtest:qppylwmaq3a86vuq3gccdah5hvs9ja4edueajtkn6g",
+    "inspector": "bchtest:qqsfz7xfz68uhdgqlflu2k73d887mzgruscxs8jjfg"
+  },
+  "earlyClaimRejections": {
+    "A4-claim-retention": {
+      "at": "2026-11-16T16:56:36.911Z",
+      "nodeMessage": "The network did not accept this transaction (it may be time-locked or its coins were already spent).",
+      "warrantyEnd": 1794848710
+    },
+    "B4-claim-retention": {
+      "at": "2026-11-16T16:56:55.641Z",
+      "nodeMessage": "The network did not accept this transaction (it may be time-locked or its coins were already spent).",
+      "warrantyEnd": 1794848710
+    }
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "contractName": "Retention",
+  "constructorInputs": [
+    {
+      "name": "owner",
+      "type": "pubkey"
+    },
+    {
+      "name": "contractor",
+      "type": "pubkey"
+    },
+    {
+      "name": "inspector",
+      "type": "pubkey"
+    },
+    {
+      "name": "warrantyEnd",
+      "type": "int"
+    },
+    {
+      "name": "termsHash",
+      "type": "bytes32"
+    }
+  ],
+  "abi": [
+    {
+      "name": "claim",
+      "inputs": []
+    },
+    {
+      "name": "cosign",
+      "inputs": [
+        {
+          "name": "first",
+          "type": "pubkey"
+        },
+        {
+          "name": "firstSig",
+          "type": "sig"
+        },
+        {
+          "name": "second",
+          "type": "pubkey"
+        },
+        {
+          "name": "secondSig",
+          "type": "sig"
+        }
+      ]
+    }
+  ],
+  "bytecode": "OP_5 OP_PICK OP_0 OP_NUMEQUAL OP_IF OP_3 OP_ROLL OP_CHECKLOCKTIMEVERIFY OP_DROP OP_3 OP_ROLL OP_SIZE OP_NIP 20 OP_NUMEQUALVERIFY OP_INPUTINDEX OP_DUP OP_OUTPUTBYTECODE 76a914 OP_4 OP_ROLL OP_HASH160 OP_CAT 88ac OP_CAT OP_EQUALVERIFY OP_DUP OP_OUTPUTVALUE OP_OVER OP_UTXOVALUE OP_GREATERTHANOREQUAL OP_VERIFY OP_DUP OP_OUTPUTTOKENCATEGORY OP_OVER OP_UTXOTOKENCATEGORY OP_EQUALVERIFY OP_DUP OP_OUTPUTTOKENAMOUNT OP_SWAP OP_UTXOTOKENAMOUNT OP_NUMEQUAL OP_NIP OP_NIP OP_NIP OP_ELSE OP_5 OP_ROLL OP_1 OP_NUMEQUALVERIFY OP_5 OP_PICK OP_8 OP_PICK OP_EQUAL OP_NOT OP_VERIFY OP_5 OP_PICK OP_OVER OP_EQUAL OP_6 OP_PICK OP_3 OP_PICK OP_EQUAL OP_BOOLOR OP_6 OP_PICK OP_4 OP_PICK OP_EQUAL OP_BOOLOR OP_VERIFY OP_7 OP_PICK OP_EQUAL OP_7 OP_PICK OP_ROT OP_EQUAL OP_BOOLOR OP_6 OP_PICK OP_ROT OP_EQUAL OP_BOOLOR OP_VERIFY OP_2SWAP OP_CHECKSIGVERIFY OP_2SWAP OP_CHECKSIG OP_NIP OP_NIP OP_ENDIF",
+  "source": "pragma cashscript ^0.14.0;\n\n// Veridom Retention vault - the warranty holdback (\"Haftruecklass\").\n//\n// A share of every released milestone lands here. After the warranty end\n// date anybody may trigger the payout, but the covenant only lets the money\n// go to the contractor. Before that date, the homeowner and the inspector can\n// together use it to fix defects the contractor did not repair.\ncontract Retention(\n    pubkey owner,\n    pubkey contractor,\n    pubkey inspector,\n    int warrantyEnd,   // locktime (unix time or block height) when the warranty ends\n    bytes32 termsHash\n) {\n    // Warranty is over: pay the contractor. No signature needed, so the\n    // contractor can never be blocked by a silent homeowner. Each vault input\n    // is paid out to the output with the same index (several can be batched).\n    function claim() {\n        require(tx.time >= warrantyEnd);\n        require(termsHash.length == 32);\n        int i = this.activeInputIndex;\n        require(tx.outputs[i].lockingBytecode == new LockingBytecodeP2PKH(hash160(contractor)));\n        require(tx.outputs[i].value >= tx.inputs[i].value);\n        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);\n        require(tx.outputs[i].tokenAmount == tx.inputs[i].tokenAmount);\n    }\n\n    // Defect found during the warranty, early settlement, or any other change:\n    // any two of the three parties decide together.\n    function cosign(pubkey first, sig firstSig, pubkey second, sig secondSig) {\n        require(first != second);\n        require(first == owner || first == contractor || first == inspector);\n        require(second == owner || second == contractor || second == inspector);\n        require(checkSig(firstSig, first));\n        require(checkSig(secondSig, second));\n    }\n}\n",
+  "fingerprint": "b9a9ae4cbde0e79dd775719fac2cae05dbb92a64f0bf40bf78135f1ab3718c6d",
+  "debug": {
+    "bytecode": "5579009c63537ab175537a827701209dc076cd0376a914547aa97e0288ac7e8876cc78c6a26976d178ce8876d37cd09c77777767557a519d557958798791695579788756795379879b56795479879b6957798757797b879b56797b879b6972ad72ac777768",
+    "sourceMap": "19:4:27:5;;;;;20:27:20:38;;:8::40:1;;21:16:21:25:0;;:::32:1;;:36::38:0;:8::40:1;22:16:22:37:0;23:27:23:28;:16::45:1;:49::94:0;:82::92;;:74::93:1;:49::94;;;:8::96;24:27:24:28:0;:16::35:1;:49::50:0;:39::57:1;:16;:8::59;25:27:25:28:0;:16::43:1;:57::58:0;:47::73:1;:8::75;26:27:26:28:0;:16::41:1;:55::56:0;:45::69:1;:8::71;19:21:27:5;;;:4;31::37::0;;;;32:16:32:21;;:25::31;;:16:::1;;:8::33;33:16:33:21:0;;:25::30;:16:::1;:34::39:0;;:43::53;;:34:::1;:16;:57::62:0;;:66::75;;:57:::1;:16;:8::77;34:16:34:22:0;;:::31:1;:35::41:0;;:45::55;:35:::1;:16;:59::65:0;;:69::78;:59:::1;:16;:8::80;35:25:35:40:0;:8::43:1;36:25:36:42:0;:8::45:1;31:78:37:5;;9:0:38:1",
+    "logs": [],
+    "requires": [
+      {
+        "ip": 12,
+        "line": 20
+      },
+      {
+        "ip": 19,
+        "line": 21
+      },
+      {
+        "ip": 30,
+        "line": 23
+      },
+      {
+        "ip": 36,
+        "line": 24
+      },
+      {
+        "ip": 41,
+        "line": 25
+      },
+      {
+        "ip": 47,
+        "line": 26
+      },
+      {
+        "ip": 61,
+        "line": 32
+      },
+      {
+        "ip": 78,
+        "line": 33
+      },
+      {
+        "ip": 92,
+        "line": 34
+      },
+      {
+        "ip": 94,
+        "line": 35
+      },
+      {
+        "ip": 97,
+        "line": 36
+      }
+    ],
+    "sourceTags": "42:44:sc;92:93:sc"
+  },
+  "compiler": {
+    "name": "cashc",
+    "version": "0.14.0",
+    "options": {
+      "enforceFunctionParameterTypes": true,
+      "enforceLocktimeGuard": true
+    }
+  }
+}

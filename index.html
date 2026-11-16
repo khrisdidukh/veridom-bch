@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Veridom Escrow - pay your builder stage by stage on Bitcoin Cash</title>
+  <meta name="description" content="Construction escrow on Bitcoin Cash: money is locked per building stage, released on approval, and a retention is held until the warranty ends. Enforced by CashScript covenants.">
+  <link rel="icon" href="./icon.svg">
+</head>
+<body>
+  <div id="blaze" class="blaze"></div>
+  <header class="top">
+    <a class="brand" href="#">
+      <img src="./icon.svg" alt="" width="34" height="34">
+      <span><b>Veridom</b> Escrow</span>
+    </a>
+    <div class="top-right">
+      <label class="net" title="Network">
+        <span class="sr">Network</span>
+        <select id="network">
+          <option value="mainnet">Mainnet</option>
+          <option value="chipnet">Chipnet (test coins)</option>
+        </select>
+      </label>
+      <button id="wallet-button" class="btn ghost" data-action="wallet">Connect wallet</button>
+    </div>
+  </header>
+  <main id="app" aria-live="polite"></main>
+  <footer class="foot">
+    <p>Veridom Escrow is a module of <a id="veridom-link" href="https://veridom.space" target="_blank" rel="noopener">Veridom</a>, the house-building control app. Open source, no server: this page talks to the Bitcoin Cash network directly.</p>
+    <p class="fine">Hackathon prototype. The covenants are tested but not audited - try it with small amounts.</p>
+  </footer>
+  <div id="modal" class="modal" hidden></div>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
