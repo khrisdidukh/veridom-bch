@@ -1,9 +1,10 @@
-node_modules/
-keys/
-dist/
-research/
 *.log
 .env*
+deck/*.pdf
+dist/
+keys/
+node_modules/
+research/
 test-results/
-video/raw/
 video/out/
+video/raw/

@@ -100,6 +100,22 @@ and co-signs.
 [wallet signs first, a second key co-signs](https://chipnet.imaginary.cash/tx/b114db1aba62d02dbce4d74e13ecf4883dd31041982021d9f66404799dc8393d),
 [a key signs first, the wallet co-signs](https://chipnet.imaginary.cash/tx/0c00c7dad184ce6549c41f93ec20ccb3b70488c7ffab97cada24f4ca765ec945).
 
+## Judges: try it on mainnet in two minutes
+
+1. Open the live demo: https://khrisdidukh.github.io/veridom-bch/
+2. **Connect wallet** and pair Cashonize or Paytaca through WizardConnect (scan the QR or paste the link).
+3. Keep **I am trying it alone** ticked (your wallet plays homeowner, builder and inspector with three
+   of its own keys), choose **Already ended** for the warranty, **Create escrow**.
+4. **Lock in escrow** → **Approve and pay builder** on stage 1 → **Refund to homeowner (2 signatures)**
+   on stage 2 → **Pay retention to builder**. Every step is a mainnet transaction you approve in your wallet.
+
+About 0.0003 BCH is moved, and all of it ends up at addresses of your own wallet, minus fees under a cent.
+No wallet at hand: switch to **Chipnet (test coins)** and use the practice wallet.
+
+Demo video (65 s): `video/out/veridom-escrow-demo-1080p.mp4`, built from a real chipnet run of the app
+by `video/flow.mjs` + `video/make.mjs`. Presentation: [`public/veridom-escrow-deck.pdf`](public/veridom-escrow-deck.pdf),
+built on the official BLAZE "Widget Factory" template by `deck/make_deck.py`.
+
 ## Run it
 
 Requires Node 22+.
@@ -128,7 +144,7 @@ EMBER2026 address for the BLAZE community vote).
 
 ## Tests
 
-`npm test` runs TESTCOUNT tests against CashScript's `MockNetworkProvider`, which evaluates every
+`npm test` runs 39 tests against CashScript's `MockNetworkProvider`, which evaluates every
 transaction in the BCH VM with the real locking bytecode. Negative tests assert that the rejection
 comes from a `require` in the contract, not from the test set-up. Covered:
 
@@ -146,9 +162,10 @@ comes from a `require` in the contract, not from the test set-up. Covered:
 ## Limitations (honest list)
 
 - **Not audited.** Hackathon prototype; use small amounts.
-- **Mainnet was not exercised by us.** The covenants and the WizardConnect flow were run on chipnet
-  only (we do not move real funds from this build environment). Mainnet uses the same bytecode and
-  code path through a network switch.
+- **Mainnet was not exercised with funds by us.** The covenants and the WizardConnect flow were run on
+  chipnet only (we do not move real funds from this build environment). Mainnet uses the same bytecode
+  and code path through a network switch; reading mainnet escrow state was checked in a browser
+  (Electrum with the REST fallback).
 - **Real-wallet check pending.** WizardConnect was verified against our own spec-following headless
   wallet, not yet against Cashonize or Paytaca on a phone.
 - **Two-signature actions across devices** work by passing a link with the half-signed transaction.

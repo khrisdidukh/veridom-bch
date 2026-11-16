@@ -218,6 +218,7 @@ function renderHome() {
       ${S.wallet ? '' : '<button class="btn go" data-action="wallet">Connect wallet to start</button>'}
       ${chip ? '' : '<button class="btn ghost" data-action="to-chipnet">Try with free test coins</button>'}
     </div>
+    ${chip ? '' : '<p class="judge"><b>Judges, 2-minute mainnet test:</b> connect Cashonize or Paytaca, keep "I am trying it alone", pick "Already ended", then lock, approve, refund and claim. About 0.0003 BCH is used and all of it lands back in your own wallet, minus fees under a cent.</p>'}
   </section>
   <ol class="how">
     <li><b>Agree</b> Stages, prices, retention and warranty date become one shareable link.</li>

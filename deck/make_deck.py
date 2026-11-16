@@ -19,7 +19,7 @@ def set_paragraphs(shape, lines):
     paras = list(tf.paragraphs)
     by_level = {}
     for p in paras:
-        if p.runs and p.level not in by_level: by_level[p.level] = p._p
+        if any(r.text.strip() for r in p.runs) and p.level not in by_level: by_level[p.level] = p._p
     out = []
     for item in lines:
         text, level = item if isinstance(item, tuple) else (item, 0)
@@ -101,28 +101,27 @@ if filled[2].runs[0].hyperlink is not None: filled[2].runs[0].hyperlink.address 
 c = by_id(s[2])
 set_paragraphs(c[95], ['The Story of Veridom Escrow'])
 set_paragraphs(c[93], [
-    'Every building contract has the same weak spot: money moves on trust. Pay early and the builder may vanish. Pay late and the builder carries your risk.',
-    'Banks answer with guarantees and notary accounts - far too heavy for a bathroom refit or a garden studio.',
-    'Veridom helps private homebuilders control their build. For BLAZE I asked: what if the payment schedule itself lived on Bitcoin Cash? Two covenants later, it does.',
+    'Building a house means paying a company you met weeks ago. Pay early and the builder may vanish. Pay late and the builder carries your risk.',
+    'Bank guarantees and notary accounts are too heavy for a bathroom refit or a garden studio.',
+    'Veridom helps private homebuilders control their build. For BLAZE the payment schedule itself moved onto Bitcoin Cash.',
 ])
 if len(sys.argv) > 1: replace_picture(s[2], c[98], square(sys.argv[1]))
 
 d_ = by_id(s[3])
 set_paragraphs(d_[107], ['Benefits of Veridom Escrow'])
 set_paragraphs(d_[108], [
-    'Money is locked per building stage',
-    ('The builder sees it before starting work', 1),
-    ('The homeowner keeps control until approval', 1),
-    'Approve and the builder is paid in seconds, for a fee under a cent',
-    'The warranty retention is enforced by a script',
-    ('After the warranty date it can only go to the builder', 1),
-    'BCH or ParyonUSD stablecoin. No server, no account: one link is the agreement',
+    'Money locked per building stage',
+    ('Builder sees it before work starts', 1),
+    ('Homeowner keeps control until approval', 1),
+    'Approve: builder paid in seconds, fee under a cent',
+    'Warranty retention enforced by a script',
+    ('After the date it can only go to the builder', 1),
 ])
 
 e = by_id(s[4])
 paras = [p for p in e[116].text_frame.paragraphs if any(r.text.strip() for r in p.runs)]   # title 'BCH Usage' stays
-usage = ['Two CashScript covenants: each stage is its own UTXO; approval forces the split between builder and a time-locked retention vault.',
-         'CashTokens for stablecoin stages (PUSD), WizardConnect for signing. Real BCH mainnet transactions from your own wallet.']
+usage = ['Two CashScript covenants: approval forces the builder / retention split.',
+         'CashTokens (PUSD) · WizardConnect · mainnet from your own wallet.']
 for p, t in zip(paras[1:], usage):
     p.runs[0].text = t
     for r in p.runs[1:]: r.text = ''
@@ -131,13 +130,17 @@ replace_picture(s[4], e[117], code_image())
 f = by_id(s[5])
 set_paragraphs(f[126], ['The Vision for Veridom Escrow'])
 set_paragraphs(f[127], [
-    'Today: a working escrow, proven on chipnet and ready for mainnet, 31 covenant tests',
-    'Next: partial settlements, photo evidence hashed into every approval',
-    'Then: built into the Veridom app',
-    ('Stages come straight from the construction schedule', 1),
-    ('Planned revenue: a small fee per released stage', 1),
-    'Goal: every private build and renovation paid stage by stage on BCH',
+    'Today: working escrow, 39 tests, full life cycle on chipnet, open on mainnet',
+    'Next: partial settlements, photo evidence in every approval',
+    'Then: inside the Veridom app',
+    ('Stages come from the construction schedule', 1),
+    ('Small fee per released stage', 1),
 ])
 
 prs.save(HERE / 'veridom-escrow-deck.pptx')
+# loose images for pasting into a Google Slides copy of the template
+assets = HERE / 'slide-images'; assets.mkdir(exist_ok=True)
+logo().save(assets / 'slide1-logo.png')
+code_image().save(assets / 'slide5-code.png')
+if len(sys.argv) > 1: square(sys.argv[1]).save(assets / 'slide3-story.png')
 print('saved', HERE / 'veridom-escrow-deck.pptx')

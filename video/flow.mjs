@@ -37,7 +37,10 @@ await pause(1500);
 mark('home');
 await shot('01-home');
 if (await page.locator('#network').inputValue() !== 'chipnet') await click('[data-action="to-chipnet"]', 1500);
-if (!(await page.locator('#wallet-button').textContent()).includes('Practice')) { await click('#wallet-button'); await click('[data-action="practice"]', 1500); }
+await page.waitForFunction(() => document.getElementById('wallet-button').textContent.includes('Practice'), null, { timeout: 8000 }).catch(async () => {
+  await click('#wallet-button'); await click('[data-action="practice"]', 1500);
+});
+await toastGone();
 mark('wallet');
 // test coins if the practice wallet is low
 const balance = async () => Number((await page.locator('#wallet-button').textContent()).match(/([\d.]+) tBCH/)?.[1] ?? 0);

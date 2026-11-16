@@ -178,3 +178,4 @@ summary { cursor: pointer; font-weight: 650; }
 .stage.settled::before { border-color: var(--ink-soft); background: var(--ink-soft); }
 .status.settled { background: #e3e9f6; color: var(--ink-soft); }
 textarea { resize: vertical; }
+.judge { margin-top: 16px; max-width: 62ch; font-size: 0.9rem; color: var(--ink); background: var(--go-soft); border-left: 4px solid var(--go); border-radius: 0 10px 10px 0; padding: 10px 14px; }
