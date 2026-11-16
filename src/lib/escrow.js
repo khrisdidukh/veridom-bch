@@ -3,7 +3,7 @@
 import { Contract, TransactionBuilder } from 'cashscript';
 import {
   sha256, hash160, binToHex, hexToBin, utf8ToBin, binToUtf8,
-  encodeCashAddress, cashAddressToLockingBytecode, binToBase64, base64ToBin,
+  encodeCashAddress, cashAddressToLockingBytecode, binToBase64, base64ToBin, decodeTransaction,
 } from '@bitauth/libauth';
 import milestoneArtifact from '../artifacts/Milestone.json' with { type: 'json' };
 import retentionArtifact from '../artifacts/Retention.json' with { type: 'json' };
@@ -151,24 +151,40 @@ export async function findRetentionUtxos(escrow) {
 
 const unitsOf = (escrow, utxo) => (escrow.terms.token ? utxo.token.amount : utxo.satoshis);
 
+async function outputLocks(provider, txid) {
+  const tx = decodeTransaction(hexToBin(await provider.getRawTransaction(txid)));
+  if (typeof tx === 'string') throw new Error(tx);
+  return tx.outputs.map((o) => binToHex(o.lockingBytecode));
+}
+
 /**
- * What is on chain right now. `getHistoryCount(address)` is optional; with it we
- * can tell "not funded yet" apart from "already paid out".
+ * What is on chain right now. `getHistory(address)` (optional) returns the ids of all
+ * transactions that touched an address. With it we can tell apart: not funded yet / paid to
+ * the builder through the covenant / settled another way by two signatures.
  */
-export async function readState(escrow, getHistoryCount) {
+export async function readState(escrow, getHistory) {
+  const { provider } = escrow;
+  const vaultLock = binToHex(lockingBytecodeOf(escrow.retention.address));
+  const builderLock = binToHex(lockingBytecodeOf(escrow.addresses.contractor.plain));
   const milestones = await Promise.all(escrow.milestones.map(async (m) => {
     const utxo = await findMilestoneUtxo(escrow, m.index);
     if (utxo) return { index: m.index, status: 'locked', locked: unitsOf(escrow, utxo) };
-    const seen = getHistoryCount ? await getHistoryCount(m.contract.address) : 0;
-    return { index: m.index, status: seen > 0 ? 'paid' : 'unfunded', locked: 0n };
+    const txids = getHistory ? await getHistory(m.contract.address) : [];
+    if (!txids.length) return { index: m.index, status: 'unfunded', locked: 0n };
+    // an approval always pays the retention vault; anything else was a two-signature settlement
+    const locks = await Promise.all(txids.map((txid) => outputLocks(provider, txid)));
+    return { index: m.index, status: locks.some((l) => l.includes(vaultLock)) ? 'paid' : 'settled', locked: 0n };
   }));
   const vault = await findRetentionUtxos(escrow);
   const held = vault.reduce((sum, u) => sum + unitsOf(escrow, u), 0n);
-  const vaultSeen = getHistoryCount ? await getHistoryCount(escrow.retention.address) : 0;
-  const allDone = milestones.every((m) => m.status === 'paid');
   let retention = 'empty';
   if (held > 0n) retention = 'held';
-  else if (vaultSeen > 0 && allDone) retention = 'paid';
+  else if (getHistory && milestones.every((m) => m.status === 'paid' || m.status === 'settled')) {
+    const txids = await getHistory(escrow.retention.address);
+    const locks = await Promise.all(txids.map((txid) => outputLocks(provider, txid)));
+    const spends = locks.filter((l) => !l.includes(vaultLock));
+    if (spends.length) retention = spends.every((l) => l.includes(builderLock)) ? 'paid' : 'settled';
+  }
   return { milestones, retention: { status: retention, held, count: vault.length } };
 }
 

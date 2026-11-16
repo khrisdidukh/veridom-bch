@@ -175,3 +175,6 @@ summary { cursor: pointer; font-weight: 650; }
   .kv { grid-template-columns: 1fr; gap: 2px; }
   .kv dd { margin-bottom: 8px; }
 }
+.stage.settled::before { border-color: var(--ink-soft); background: var(--ink-soft); }
+.status.settled { background: #e3e9f6; color: var(--ink-soft); }
+textarea { resize: vertical; }

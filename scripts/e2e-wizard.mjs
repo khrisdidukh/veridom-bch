@@ -53,7 +53,7 @@ const escrow = createEscrow({
   milestones: [{ name: 'Stage 1', amount: '3000' }, { name: 'Stage 2', amount: '3000' }],
 }, provider);
 
-const before = await readState(escrow, provider.getHistoryCount);
+const before = await readState(escrow, provider.getHistory);
 if (before.milestones.every((m) => m.status === 'unfunded')) record('fund', await wallet.send(
   await buildFund(escrow, { payerUtxos: await wallet.coins(provider), changeAddress: wallet.address(0) }),
   { prompt: 'Lock funds for 2 milestones' },
@@ -76,10 +76,10 @@ record('refund-2-of-3', await wallet.send(
 ), 'two signatures collected in two wallet requests');
 await sleep(3000);
 
-const state = await readState(escrow, provider.getHistoryCount);
+const state = await readState(escrow, provider.getHistory);
 proof.finalState = { milestones: state.milestones.map((m) => m.status), retentionHeld: String(state.retention.held) };
 console.log(proof.finalState);
-if (proof.finalState.milestones.join() !== 'paid,paid' || state.retention.held !== 600n) throw new Error('unexpected final state');
+if (proof.finalState.milestones.join() !== 'paid,settled' || state.retention.held !== 600n) throw new Error('unexpected final state');
 fs.writeFileSync(proofFile, JSON.stringify(proof, null, 2) + '\n');
 console.log('WizardConnect end-to-end: PASS');
 process.exit(0);

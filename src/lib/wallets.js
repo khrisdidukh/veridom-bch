@@ -15,10 +15,7 @@ import { pubkeyToAddress } from './escrow.js';
 export const SEATS = 3; // owner, contractor, inspector when one wallet plays every role
 const SCAN = 6; // addresses scanned per chain for coins
 
-/** 65 non-zero bytes: stands in for the second signature while the first one is collected. */
-const SECOND_SLOT = new Uint8Array(65).fill(1);
-const ZERO_SIG_HEX = binToHex(new Uint8Array(65));
-const SECOND_SLOT_HEX = binToHex(SECOND_SLOT);
+import { SECOND_SLOT, SECOND_SLOT_HEX, ZERO_SIG_HEX, completeLocally } from './cosign.js';
 
 // ---------------------------------------------------------------- practice wallet (chipnet)
 
@@ -42,7 +39,12 @@ export function practiceWallet(storage = globalThis.localStorage) {
     address: (seat) => parties[seat].address,
     tokenAddress: (seat) => parties[seat].tokenAddress,
     holds: (pubkey) => Boolean(byPubkey(pubkey)),
-    signatureFor: (pubkey) => byPubkey(pubkey).signature(),
+    /** our own keys sign right away; another party's signature gets a place-holder */
+    signatureFor: (pubkey) => (byPubkey(pubkey) ? byPubkey(pubkey).signature() : SECOND_SLOT),
+    /** first half of a two-device action: signed by us, not broadcast */
+    async signPartial(builder) { return builder.build(); },
+    /** second half: add our signature to a request prepared by another party */
+    async complete(inspected, pubkey) { return completeLocally(inspected, hexToBin(saved[parties.indexOf(byPubkey(pubkey))])); },
     async coins(provider) {
       const lists = await Promise.all(parties.map((p) => p.utxos(provider)));
       return lists.flat();
@@ -92,6 +94,17 @@ export function connectWizard(network, { resume = false } = {}) {
   };
 }
 
+function relaySourceOutput(so, contract) {
+  return {
+    ...sourceOutputToRelay(so),
+    ...(contract ? { contract: {
+      abiFunction: { name: contract.abiFunction.name },
+      redeemScript: binToHex(contract.redeemScript),
+      artifact: { contractName: contract.artifact.contractName },
+    } } : {}),
+  };
+}
+
 function wizardWallet(network, manager, relay) {
   const derive = (child, index) => {
     const pubkey = manager.getPubkey(child, BigInt(index));
@@ -138,22 +151,31 @@ function wizardWallet(network, manager, relay) {
      * The wallet shows the transaction to the user; nothing is broadcast without approval.
      */
     async send(builder, { signers = [], prompt } = {}) {
+      let signedHex = await this.signPartial(builder, { signers, prompt });
+      if (signers[1] && pathOfPubkey(signers[1])) {
+        // second signature of a two-party action, from another key of the same wallet
+        const tx = decodeTransaction(hexToBin(signedHex));
+        if (typeof tx === 'string') throw new Error(tx);
+        const sourceOutputs = builder.generateWcTransactionObject().sourceOutputs.map((so, i) => ({ ...so, unlockingBytecode: tx.inputs[i].unlockingBytecode }));
+        const contractInputs = sourceOutputs.map((so, i) => (so.contract ? i : -1)).filter((i) => i >= 0);
+        const first = sourceOutputs[contractInputs[0]].contract;
+        signedHex = await this.complete({
+          transaction: tx, sourceOutputs, contractInputs, redeemScript: first.redeemScript, contractName: first.artifact.contractName,
+        }, signers[1], `${prompt ?? 'Co-sign'} (second signature)`);
+      }
+      if (signedHex.includes(ZERO_SIG_HEX) || signedHex.includes(SECOND_SLOT_HEX)) {
+        throw new Error('This action needs a second signature from another party.');
+      }
+      return builder.provider.sendRawTransaction(signedHex);
+    },
+    /** Ask the wallet for our signature(s); returns the transaction hex without broadcasting. */
+    async signPartial(builder, { signers = [], prompt } = {}) {
       const object = builder.generateWcTransactionObject({ broadcast: false, userPrompt: prompt });
-      const sourceOutputs = object.sourceOutputs.map((so) => ({
-        ...sourceOutputToRelay(so),
-        ...(so.contract ? { contract: {
-          abiFunction: { name: so.contract.abiFunction.name },
-          redeemScript: binToHex(so.contract.redeemScript),
-          artifact: { contractName: so.contract.artifact.contractName },
-        } } : {}),
-      }));
-      const contractInputs = object.sourceOutputs.map((so, i) => (so.contract ? i : -1)).filter((i) => i >= 0);
-      const needsKey = (i) => sourceOutputs[i].unlockingBytecode.includes(ZERO_SIG_HEX);
       const firstPath = signers[0] ? pathOfPubkey(signers[0]) : undefined;
       const inputPaths = [];
-      object.sourceOutputs.forEach((so, i) => {
+      const sourceOutputs = object.sourceOutputs.map((so, i) => {
         if (so.contract) {
-          if (needsKey(i)) {
+          if (binToHex(so.unlockingBytecode).includes(ZERO_SIG_HEX)) {
             if (!firstPath) throw new Error('This wallet does not hold the key that has to sign here.');
             inputPaths.push([i, ...firstPath]);
           }
@@ -162,31 +184,24 @@ function wizardWallet(network, manager, relay) {
           if (!path) throw new Error('A coin in this transaction does not belong to the connected wallet.');
           inputPaths.push([i, ...path]);
         }
+        return relaySourceOutput(so, so.contract);
       });
-      let signedHex = await sign({
-        transaction: binToHex(encodeTransaction(object.transaction)), sourceOutputs, broadcast: false, userPrompt: prompt,
-      }, inputPaths);
-
-      if (signers[1]) {
-        // second signature of a two-party action, from another key of the same wallet
-        const secondPath = pathOfPubkey(signers[1]);
-        if (!secondPath) throw new Error('This wallet does not hold the second key. Ask the other party to co-sign.');
-        const tx = decodeTransaction(hexToBin(signedHex));
-        if (typeof tx === 'string') throw new Error(tx);
-        for (const i of contractInputs) {
-          const unlocking = binToHex(tx.inputs[i].unlockingBytecode).replace(SECOND_SLOT_HEX, ZERO_SIG_HEX);
-          tx.inputs[i].unlockingBytecode = hexToBin(unlocking);
-          sourceOutputs[i].unlockingBytecode = unlocking;
-        }
-        tx.inputs.forEach((input, i) => { if (!contractInputs.includes(i)) sourceOutputs[i].unlockingBytecode = binToHex(input.unlockingBytecode); });
-        signedHex = await sign({
-          transaction: binToHex(encodeTransaction(tx)), sourceOutputs, broadcast: false, userPrompt: `${prompt ?? 'Co-sign'} (second signature)`,
-        }, contractInputs.map((i) => [i, ...secondPath]));
+      return sign({ transaction: binToHex(encodeTransaction(object.transaction)), sourceOutputs, broadcast: false, userPrompt: prompt }, inputPaths);
+    },
+    /** Add our signature to a half-signed two-party transaction (ours or another party's). */
+    async complete(inspected, pubkey, prompt = 'Co-sign') {
+      const path = pathOfPubkey(pubkey);
+      if (!path) throw new Error('This wallet does not hold the key that has to co-sign.');
+      const { transaction, contractInputs } = inspected;
+      const contract = { abiFunction: { name: 'cosign' }, redeemScript: inspected.redeemScript, artifact: { contractName: inspected.contractName } };
+      for (const i of contractInputs) {
+        transaction.inputs[i].unlockingBytecode = hexToBin(binToHex(transaction.inputs[i].unlockingBytecode).replace(SECOND_SLOT_HEX, ZERO_SIG_HEX));
       }
-      if (signedHex.includes(ZERO_SIG_HEX) || signedHex.includes(SECOND_SLOT_HEX)) {
-        throw new Error('The wallet returned an incomplete signature. Nothing was sent.');
-      }
-      return builder.provider.sendRawTransaction(signedHex);
+      const sourceOutputs = inspected.sourceOutputs.map((so, i) => relaySourceOutput(
+        { ...so, unlockingBytecode: transaction.inputs[i].unlockingBytecode },
+        contractInputs.includes(i) ? contract : undefined,
+      ));
+      return sign({ transaction: binToHex(encodeTransaction(transaction)), sourceOutputs, broadcast: false, userPrompt: prompt }, contractInputs.map((i) => [i, ...path]));
     },
     async disconnect() {
       manager.clearStoredSession();

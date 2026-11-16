@@ -1,0 +1,24 @@
+{
+  "network": "chipnet",
+  "steps": {
+    "fund": {
+      "txid": "3059433fe5c1a2658fb75a0a306418f13b7652cee73b3d860793b06f46533903",
+      "explorer": "https://chipnet.imaginary.cash/tx/3059433fe5c1a2658fb75a0a306418f13b7652cee73b3d860793b06f46533903",
+      "note": "homeowner wallet locks 2 stages"
+    },
+    "refund-wallet-first": {
+      "txid": "b114db1aba62d02dbce4d74e13ecf4883dd31041982021d9f66404799dc8393d",
+      "explorer": "https://chipnet.imaginary.cash/tx/b114db1aba62d02dbce4d74e13ecf4883dd31041982021d9f66404799dc8393d",
+      "note": "wallet signed first, inspector key co-signed; 2270 of 3000 sats to the homeowner"
+    },
+    "refund-wallet-second": {
+      "txid": "0c00c7dad184ce6549c41f93ec20ccb3b70488c7ffab97cada24f4ca765ec945",
+      "explorer": "https://chipnet.imaginary.cash/tx/0c00c7dad184ce6549c41f93ec20ccb3b70488c7ffab97cada24f4ca765ec945",
+      "note": "inspector key signed first, wallet co-signed from the link"
+    }
+  },
+  "finalState": [
+    "settled",
+    "settled"
+  ]
+}

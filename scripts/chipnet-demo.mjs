@@ -124,7 +124,7 @@ for (const [name, escrow] of [['A4-claim-retention', A], ['B4-claim-retention', 
   save();
 }
 for (const [k, e] of [['bch', A], ['token', B]]) {
-  const s = await readState(e, provider.getHistoryCount);
+  const s = await readState(e, provider.getHistory);
   console.log(k, s.milestones.map((m) => m.status).join(','), '| vault', s.retention.status, String(s.retention.held));
 }
 for (const r of Object.keys(P)) console.log(r, 'plain sats left', String(await plain(P[r])));

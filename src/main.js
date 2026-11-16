@@ -7,6 +7,7 @@ import {
 } from './lib/escrow.js';
 import { connect, EXPLORER } from './lib/providers.js';
 import { practiceWallet, connectWizard } from './lib/wallets.js';
+import { SECOND_SLOT, encodeRequest, decodeRequest, inspectRequest } from './lib/cosign.js';
 import { REPO_URL, PRESENTATION_URL, EMBER_ADDRESS, PUSD, FAUCET_URL } from './config.js';
 
 const $ = (id) => document.getElementById(id);
@@ -27,6 +28,8 @@ const S = {
   chain: null,
   busy: '',
   form: null,
+  request: null, // a co-sign request opened from a link
+  inspected: null,
 };
 
 // ------------------------------------------------------------------ helpers
@@ -81,7 +84,7 @@ async function refreshEscrow({ expectChange = false } = {}) {
   const before = JSON.stringify(S.chain, (k, v) => (typeof v === 'bigint' ? String(v) : v));
   for (let i = 0; i < (expectChange ? 6 : 1); i += 1) {
     if (expectChange) await sleep(1500);
-    S.chain = await readState(S.escrow, p.getHistoryCount);
+    S.chain = await readState(S.escrow, p.getHistory);
     if (!expectChange || JSON.stringify(S.chain, (k, v) => (typeof v === 'bigint' ? String(v) : v)) !== before) break;
   }
   await loadCoins();
@@ -318,7 +321,7 @@ function renderEscrow() {
   <ol class="stages">
     ${S.escrow.milestones.map((m) => {
     const st = chain?.milestones[m.index] ?? { status: 'loading' };
-    const label = { unfunded: 'Awaiting funds', locked: 'Locked', paid: 'Paid', loading: '…' }[st.status];
+    const label = { unfunded: 'Awaiting funds', locked: 'Locked', paid: 'Paid', settled: 'Settled by 2 signatures', loading: '…' }[st.status];
     return `<li class="stage ${st.status}">
       <div class="stage-head"><h3>${m.index + 1}. ${esc(m.name)}</h3><span class="stage-amount">${fmt(m.amount)}</span></div>
       <span class="status ${st.status}">${label}</span>
@@ -327,16 +330,18 @@ function renderEscrow() {
       ${st.status === 'locked' ? `<div class="stage-actions">
         ${canApprove ? `<button class="btn go" data-action="release" data-i="${m.index}">${busy(`release${m.index}`, 'Approve and pay builder')}</button>` : '<span class="fine">Only the homeowner or the inspector can approve this stage.</span>'}
         ${canCosign ? `<button class="btn link" data-action="refund" data-i="${m.index}">${busy(`refund${m.index}`, 'Refund to homeowner (2 signatures)')}</button>` : ''}
+        ${mine.length === 1 ? `<button class="btn link" data-action="propose" data-target="${m.index}">Propose a refund (needs a second signature)</button>` : ''}
       </div>` : ''}
     </li>`;
   }).join('')}
     <li class="stage vault">
       <div class="stage-head"><h3>Retention vault</h3><span class="stage-amount">${chain ? fmt(chain.retention.held) : '…'}</span></div>
-      <span class="status ${chain?.retention.status === 'held' ? 'held' : chain?.retention.status === 'paid' ? 'paid' : ''}">${{ held: 'Held for warranty', paid: 'Paid out', empty: 'Empty' }[chain?.retention.status] ?? '…'}</span>
+      <span class="status ${chain?.retention.status === 'held' ? 'held' : chain?.retention.status === 'paid' ? 'paid' : ''}">${{ held: 'Held for warranty', paid: 'Paid to builder', settled: 'Settled by 2 signatures', empty: 'Empty' }[chain?.retention.status] ?? '…'}</span>
       <p class="fine" style="margin-top:8px">${warrantyOver ? `The warranty ended on ${dateText(terms.warrantyEnd)}. The vault can now only pay the builder.` : `Locked until ${dateText(terms.warrantyEnd)}. After that date anyone can trigger the payout, and it can only go to the builder.`}</p>
       ${chain?.retention.status === 'held' ? `<div class="stage-actions">
         <button class="btn go" data-action="claim" ${warrantyOver && S.wallet ? '' : 'disabled'}>${busy('claim', 'Pay retention to builder')}</button>
         ${canCosign ? `<button class="btn link" data-action="defect">${busy('defect', 'Use for a defect (2 signatures)')}</button>` : ''}
+        ${mine.length === 1 ? '<button class="btn link" data-action="propose" data-target="retention">Propose using it for a defect (needs a second signature)</button>' : ''}
       </div>` : ''}
     </li>
   </ol>
@@ -359,8 +364,37 @@ function renderEscrow() {
       </dl>
     </details>
     <details><summary>What if we disagree?</summary>
-      <p class="fine" style="margin-top:8px">Any two of the three parties can move locked money together: homeowner and inspector can refund an abandoned stage or use the retention to fix a defect; homeowner and builder can settle early. One party alone can never take the money. In this version two-signature actions work when one wallet holds two of the keys (as in the solo demo); signing from two separate devices is the next step on the roadmap.</p>
+      <p class="fine" style="margin-top:8px">Any two of the three parties can move locked money together: homeowner and inspector can refund an abandoned stage or use the retention to fix a defect; homeowner and builder can settle early. One party alone can never take the money. The first party signs and sends a link; the money moves only when the second party has checked it and signed too.</p>
     </details>
+  </section>`;
+}
+
+function renderRequest() {
+  const { terms } = S.escrow;
+  const r = S.request;
+  const ins = S.inspected;
+  const fmt = (v) => formatAmount(terms, v);
+  const what = r.target === 'retention' ? 'Use the retention vault' : `Refund stage ${Number(r.target) + 1}: ${esc(S.escrow.milestones[Number(r.target)].name)}`;
+  const holds = S.wallet?.holds(terms[r.second]);
+  const short_ = ins && ins.toRecipient * 100n < ins.moved * 95n;
+  return `<section class="card">
+    <p class="fine">Co-sign request · ${esc(terms.title)}</p>
+    <h2 style="font-size:1.6rem">${ROLE_NAME[r.first]} asks the ${ROLE_NAME[r.second].toLowerCase()} to co-sign</h2>
+    <p class="lead" style="margin-top:6px">${what}</p>
+    ${ins ? `<dl class="kv">
+      <dt>Money moved</dt><dd class="mono">${fmt(ins.moved)}</dd>
+      <dt>Goes to the ${ROLE_NAME[r.recipient].toLowerCase()}</dt><dd class="mono">${fmt(ins.toRecipient)}</dd>
+      <dt>Already signed by</dt><dd>${ROLE_NAME[r.first]}</dd>
+    </dl>
+    ${ins.unknownOutputs ? '<p class="notice" style="margin-top:12px"><b>Careful:</b> part of this money would go to an address that is not one of the three parties. Do not sign unless you know why.</p>' : ''}
+    ${short_ && !ins.unknownOutputs ? '<p class="notice" style="margin-top:12px"><b>Careful:</b> noticeably less arrives than is moved. Check with the other party before signing.</p>' : ''}
+    <div class="stage-actions">
+      <button class="btn go" data-action="cosign-send" ${holds ? '' : 'disabled'}>${S.busy === 'cosign' ? '<span class="spinner"></span>Waiting…' : 'Co-sign and send'}</button>
+      <a class="btn ghost" href="#e/${encodeTerms(terms)}" style="text-decoration:none">Open the escrow</a>
+    </div>
+    ${holds ? '' : `<p class="fine" style="margin-top:10px">${S.wallet ? `The connected wallet is not the ${ROLE_NAME[r.second].toLowerCase()} of this escrow.` : `Connect the ${ROLE_NAME[r.second].toLowerCase()}'s wallet to sign.`}</p>`}
+    <p class="fine" style="margin-top:10px">These numbers are read from the transaction itself and from the chain, not from the sender's description. Your signature cannot be reused for anything else.</p>`
+    : '<p class="notice">This request can no longer be signed. The money may already be settled.</p>'}
   </section>`;
 }
 
@@ -469,6 +503,47 @@ const actions = {
       ...two, recipient: 'owner', feeUtxos: S.coins, changeAddress: S.wallet.address(0),
     }), two.signers, 'Use the retention to fix a defect');
   },
+  propose(el) {
+    const { target } = el.dataset;
+    const me = myRoles()[0];
+    $('modal').innerHTML = `<div class="sheet"><h2>Who will co-sign?</h2>
+      <p class="muted">You sign first. The money moves only after the second party has checked the request and signed too.</p>
+      ${ROLES.filter((r) => r !== me).map((r) => `<button class="btn" data-action="propose-go" data-target="${target}" data-second="${r}">${ROLE_NAME[r]}</button>`).join('')}
+      <button class="btn link" data-action="close">Cancel</button></div>`;
+    $('modal').hidden = false;
+  },
+  async 'propose-go'(el) {
+    const target = el.dataset.target === 'retention' ? 'retention' : Number(el.dataset.target);
+    const first = myRoles()[0];
+    const { second } = el.dataset;
+    const { terms } = S.escrow;
+    $('modal').hidden = true;
+    await run('propose', async () => {
+      await loadCoins();
+      const builder = await buildCosign(S.escrow, target, {
+        first: { role: first, signature: S.wallet.signatureFor(terms[first], 0) },
+        second: { role: second, signature: SECOND_SLOT },
+        recipient: 'owner', feeUtxos: S.coins, changeAddress: S.wallet.address(0),
+      });
+      const txHex = await S.wallet.signPartial(builder, { signers: [terms[first]], prompt: target === 'retention' ? 'Propose: use the retention for a defect' : `Propose: refund stage ${target + 1}` });
+      const link = `${location.origin}${location.pathname}${location.search}#s/${encodeRequest({ terms, target, first, second, recipient: 'owner', txHex })}`;
+      $('modal').innerHTML = `<div class="sheet"><h2>Send this link to the ${ROLE_NAME[second].toLowerCase()}</h2>
+        <p class="muted">Your signature is inside. Nothing moves until the ${ROLE_NAME[second].toLowerCase()} opens the link, checks the amounts and co-signs.</p>
+        <textarea class="mono" rows="4" readonly id="cosign-link">${esc(link)}</textarea>
+        <button class="btn go" data-action="copy" data-copy="${esc(link)}">Copy link</button>
+        <button class="btn link" data-action="close">Done</button></div>`;
+      $('modal').hidden = false;
+    });
+  },
+  'cosign-send': () => run('cosign', async () => {
+    const r = S.request;
+    const hex = await S.wallet.complete(S.inspected, S.escrow.terms[r.second], r.target === 'retention' ? 'Co-sign: use the retention' : `Co-sign: refund stage ${Number(r.target) + 1}`);
+    S.inspected = null; // one use only: signing changes it
+    const txid = await (await provider()).sendRawTransaction(hex);
+    addLog(r.target === 'retention' ? 'Retention settled by two signatures' : `Stage ${Number(r.target) + 1} refunded by two signatures`, txid);
+    toast(`Co-signed and sent - ${txLink(txid)}`);
+    location.hash = `e/${encodeTerms(S.escrow.terms)}`;
+  }),
   claim: () => act('claim', 'Retention paid to builder', async () => buildClaim(S.escrow, { feeUtxos: S.coins, changeAddress: S.wallet.address(0) }), [], 'Pay the retention to the builder'),
 };
 
@@ -487,8 +562,21 @@ async function switchNetwork(network) {
 
 async function route() {
   const hash = location.hash.replace(/^#/, '');
-  S.escrow = null; S.chain = null;
-  if (hash.startsWith('e/')) {
+  S.escrow = null; S.chain = null; S.request = null; S.inspected = null;
+  if (hash.startsWith('s/')) {
+    try {
+      const request = decodeRequest(hash.slice(2));
+      if (request.terms.network !== S.network) await switchNetwork(request.terms.network);
+      S.escrow = createEscrow(request.terms, await provider());
+      S.request = request;
+      render();
+      S.inspected = await inspectRequest(S.escrow, request).catch((error) => { console.error(error); toast(esc(friendly(error)), true); return null; });
+    } catch (error) {
+      console.error(error);
+      toast(esc(friendly(error)), true);
+      location.hash = '';
+    }
+  } else if (hash.startsWith('e/')) {
     try {
       const terms = decodeTerms(hash.slice(2));
       if (terms.network !== S.network) await switchNetwork(terms.network);
@@ -506,7 +594,7 @@ async function route() {
 }
 
 function render() {
-  $('app').innerHTML = S.escrow ? renderEscrow() : renderHome();
+  $('app').innerHTML = S.request ? renderRequest() : S.escrow ? renderEscrow() : renderHome();
   $('app').classList.toggle('busy', false);
   $('wallet-button').textContent = S.wallet ? `${S.wallet.kind === 'practice' ? 'Practice wallet' : S.wallet.label} · ${formatAmount({ network: S.network, token: null }, plainBalance())}` : 'Connect wallet';
   $('network').value = S.network;
@@ -548,6 +636,10 @@ window.addEventListener('hashchange', route);
 
 renderBanner();
 // a shared link decides the network before anything else
-try { const h = location.hash.replace(/^#e\//, ''); if (location.hash.startsWith('#e/')) { S.network = decodeTerms(h).network; store.set('veridom-network', S.network); } } catch { /* handled in route() */ }
+try {
+  if (location.hash.startsWith('#e/')) S.network = decodeTerms(location.hash.slice(3)).network;
+  if (location.hash.startsWith('#s/')) S.network = decodeRequest(location.hash.slice(3)).terms.network;
+  store.set('veridom-network', S.network);
+} catch { /* handled in route() */ }
 render();
 resumeWallet().then(afterWalletChange).then(route);

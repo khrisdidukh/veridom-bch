@@ -9,7 +9,9 @@ export const TUSD = 'aa'.repeat(32);
 export function setup({ token = false, retentionBps = 500, amounts = ['100000', '200000', '50000'] } = {}) {
   const provider = new MockNetworkProvider();
   provider.network = 'chipnet';
-  const [owner, contractor, inspector, stranger] = [0, 1, 2, 3].map(() => localParty(binToHex(generatePrivateKey()), 'chipnet'));
+  const secrets = [0, 1, 2, 3].map(() => binToHex(generatePrivateKey()));
+  const [owner, contractor, inspector, stranger] = secrets.map((key) => localParty(key, 'chipnet'));
+  const keys = { owner: secrets[0], contractor: secrets[1], inspector: secrets[2], stranger: secrets[3] };
   const terms = {
     network: 'chipnet',
     title: 'Family house, Franzen',
@@ -23,7 +25,7 @@ export function setup({ token = false, retentionBps = 500, amounts = ['100000', 
   for (const p of [owner, contractor, inspector, stranger]) provider.addUtxo(p.address, randomUtxo({ satoshis: 50000n }));
   provider.addUtxo(owner.address, randomUtxo({ satoshis: 1000000n }));
   if (token) provider.addUtxo(owner.address, randomUtxo({ satoshis: 1000n, token: { category: TUSD, amount: 1000000n } }));
-  return { provider, owner, contractor, inspector, stranger, terms, escrow };
+  return { provider, owner, contractor, inspector, stranger, terms, escrow, keys };
 }
 
 export async function balance(provider, address, category) {

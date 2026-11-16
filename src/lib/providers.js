@@ -54,8 +54,8 @@ export function restProvider(network) {
       }
       throw new Error('The network did not accept this transaction (it may be time-locked or its coins were already spent).');
     },
-    async getHistoryCount(address) {
-      return (await rest('wallet/get_history', { ...watch(address), count: 1 })).length;
+    async getHistory(address) {
+      return (await rest('wallet/get_history', { ...watch(address), count: 10 })).map((item) => item.hash);
     },
   };
 }
@@ -63,7 +63,7 @@ export function restProvider(network) {
 export function electrumProvider(network) {
   const provider = new ElectrumNetworkProvider(network);
   provider.kind = 'electrum';
-  provider.getHistoryCount = async (address) => (await provider.performRequest('blockchain.address.get_history', address)).length;
+  provider.getHistory = async (address) => (await provider.performRequest('blockchain.address.get_history', address)).map((item) => item.tx_hash);
   return provider;
 }
 

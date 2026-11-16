@@ -43,6 +43,18 @@
       "note": "dispute path: 2 of 3 return the unstarted milestone (2500.00 tUSD) to the homeowner",
       "explorer": "https://chipnet.imaginary.cash/tx/1c670637310b2f55a24d81485173a8a4999b873b7c883409effe2178d3a87a49",
       "at": "2026-11-16T16:55:42.864Z"
+    },
+    "A4-claim-retention": {
+      "txid": "6086ec2186aaba15d27841b2812c1d9c666d6f43e9dffeae3476a5ab18e1e12c",
+      "explorer": "https://chipnet.imaginary.cash/tx/6086ec2186aaba15d27841b2812c1d9c666d6f43e9dffeae3476a5ab18e1e12c",
+      "at": "2026-11-16T17:22:32.928Z",
+      "note": "warranty over: vault pays the contractor, no signature needed"
+    },
+    "B4-claim-retention": {
+      "txid": "0d34f3adcd5aa8e9f95c4264f009747cff707696a4f96847b65faa3961b85d09",
+      "explorer": "https://chipnet.imaginary.cash/tx/0d34f3adcd5aa8e9f95c4264f009747cff707696a4f96847b65faa3961b85d09",
+      "at": "2026-11-16T17:22:37.598Z",
+      "note": "warranty over: vault pays the contractor, no signature needed"
     }
   },
   "terms": {

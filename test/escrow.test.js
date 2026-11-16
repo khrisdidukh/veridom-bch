@@ -185,14 +185,44 @@ describe('BCH escrow', () => {
     }
   });
 
-  it('reports paid milestones when history is available', async () => {
+  it('tells paid, refunded and unfunded stages apart from the chain history', async () => {
     const ctx = setup();
-    await fund(ctx);
-    await release(ctx, 0);
-    const state = await readState(ctx.escrow, async (address) => (address === ctx.escrow.milestones[0].contract.address ? 2 : 1));
-    expect(state.milestones[0].status).toBe('paid');
-    expect(state.milestones[1].status).toBe('locked');
+    const history = {};
+    const note = async (txid, ...addresses) => { for (const a of addresses) (history[a] ??= []).push(txid); };
+    const [m0, m1, m2] = ctx.escrow.milestones.map((m) => m.contract.address);
+    const vault = ctx.escrow.retention.address;
+    const getHistory = async (address) => history[address] ?? [];
+    expect((await readState(ctx.escrow, getHistory)).milestones.map((m) => m.status)).toEqual(['unfunded', 'unfunded', 'unfunded']);
+    await note(await fund(ctx), m0, m1, m2);
+    await note(await release(ctx, 0), m0, vault);
+    const refund = await buildCosign(ctx.escrow, 2, {
+      first: { role: 'owner', signature: ctx.owner.signature() }, second: { role: 'inspector', signature: ctx.inspector.signature() }, recipient: 'owner',
+    });
+    await note(await ctx.owner.send(refund), m2);
+    let state = await readState(ctx.escrow, getHistory);
+    expect(state.milestones.map((m) => m.status)).toEqual(['paid', 'locked', 'settled']);
     expect(state.retention).toMatchObject({ status: 'held', held: 5000n });
+    await note(await release(ctx, 1, 'inspector'), m1, vault);
+    const claim = await buildClaim(ctx.escrow, { feeUtxos: await ctx.contractor.utxos(ctx.provider), changeAddress: ctx.contractor.address });
+    await note(await ctx.contractor.send(claim), vault);
+    state = await readState(ctx.escrow, getHistory);
+    expect(state.retention.status).toBe('paid');
+  });
+
+  it('marks the vault as settled when the retention was used for a defect', async () => {
+    const ctx = setup({ amounts: ['100000'] });
+    const history = {};
+    const getHistory = async (address) => history[address] ?? [];
+    const m0 = ctx.escrow.milestones[0].contract.address;
+    const vault = ctx.escrow.retention.address;
+    history[m0] = [await fund(ctx)];
+    const paid = await release(ctx, 0);
+    history[m0].push(paid); history[vault] = [paid];
+    const defect = await buildCosign(ctx.escrow, 'retention', {
+      first: { role: 'owner', signature: ctx.owner.signature() }, second: { role: 'inspector', signature: ctx.inspector.signature() }, recipient: 'owner',
+    });
+    history[vault].push(await ctx.owner.send(defect));
+    expect((await readState(ctx.escrow, getHistory)).retention.status).toBe('settled');
   });
 
   it('gives a clear message when there is nothing to release or fund', async () => {
